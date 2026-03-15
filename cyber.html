@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>CYBER TRACKER V7 // FINAL APEX</title>
+    <style>
+        :root { --neon: #00ff66; --alert: #ffcc00; --bg: #010801; --glitch-gap: 5px; }
+        
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        body { 
+            background: #000; color: var(--neon); 
+            font-family: 'Share Tech Mono', monospace; 
+            margin: 0; height: 100vh; 
+            display: flex; justify-content: center; align-items: center; 
+            overflow: hidden;
+        }
+
+        /* Scanline ve Glitch Efekti */
+        #scan-line { 
+            width: 100%; height: 100%; position: absolute; pointer-events: none; 
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 255, 102, 0.05) 50%); 
+            background-size: 100% 4px; z-index: 100; opacity: 0.6;
+        }
+
+        #main-frame {
+            border: 2px solid var(--neon); width: 1100px; height: 750px;
+            display: grid; grid-template-columns: 2fr 1fr; 
+            background: rgba(0, 15, 0, 0.98);
+            box-shadow: 0 0 50px rgba(0, 255, 102, 0.2), inset 0 0 100px #000; 
+            position: relative; z-index: 10;
+        }
+
+        /* Monitor Bölümü */
+        .monitor { padding: 40px; border-right: 2px solid var(--neon); display: flex; flex-direction: column; position: relative; }
+        
+        .header { 
+            font-size: 32px; border-bottom: 2px solid var(--neon); 
+            padding-bottom: 15px; margin-bottom: 25px; 
+            display: flex; justify-content: space-between; 
+            text-shadow: 0 0 15px var(--neon);
+        }
+
+        /* Kontroller */
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; }
+        input { 
+            background: #000; border: 1px solid var(--neon); color: #fff; 
+            padding: 15px; flex-grow: 1; outline: none; font-family: inherit; font-size: 16px;
+        }
+        button { 
+            background: var(--neon); border: none; color: #000; 
+            padding: 0 35px; cursor: pointer; font-weight: bold; 
+            text-transform: uppercase; transition: 0.3s;
+        }
+        button:hover { background: #fff; box-shadow: 0 0 20px #fff; transform: scale(1.02); }
+
+        /* Kalibrasyon Ünitesi */
+        .calibration-unit {
+            background: rgba(0, 255, 102, 0.1); border: 1px dashed var(--neon);
+            padding: 12px; margin-bottom: 25px; display: flex; 
+            align-items: center; justify-content: space-around; font-size: 13px;
+        }
+
+        /* Veri Paneli */
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-card { 
+            border: 1px solid rgba(0, 255, 102, 0.2); padding: 20px; 
+            background: rgba(0, 30, 0, 0.4); position: relative;
+        }
+        .stat-card::after {
+            content: ""; position: absolute; top:0; left:0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,255,102,0.03) 1px, rgba(0,255,102,0.03) 2px);
+            pointer-events: none;
+        }
+        .label { color: #008844; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+        .value { color: #fff; font-size: 28px; margin-top: 8px; font-weight: bold; }
+
+        /* Yan Panel */
+        .side-panel { display: flex; flex-direction: column; background: #000; border-left: 1px solid var(--neon); }
+        .radar-box { 
+            height: 280px; position: relative; display: flex; 
+            flex-direction: column; justify-content: center; align-items: center; 
+            border-bottom: 2px solid var(--neon); 
+        }
+        .radar { 
+            width: 180px; height: 180px; border: 2px solid var(--neon); 
+            border-radius: 50%; position: relative;
+            background: radial-gradient(circle, rgba(0,255,102,0.1) 0%, transparent 80%);
+        }
+        .radar::after { 
+            content: ''; position: absolute; width: 50%; height: 2px; 
+            background: var(--neon); top: 50%; left: 50%; 
+            transform-origin: left; animation: sweep 3s linear infinite; 
+        }
+        @keyframes sweep { to { transform: rotate(360deg); } }
+
+        /* Loglar */
+        .log-container { 
+            flex-grow: 1; padding: 20px; font-size: 11px; 
+            overflow-y: auto; display: flex; flex-direction: column-reverse; 
+            background: rgba(0,5,0,1);
+        }
+        .log-entry { margin-bottom: 6px; border-left: 2px solid #004422; padding-left: 10px; }
+
+        /* Footer */
+        .footer { 
+            margin-top: auto; padding-top: 20px; border-top: 1px solid #004422; 
+            display: flex; justify-content: space-between; font-size: 10px; color: #004422;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: var(--neon); }
+    </style>
+</head>
+<body>
+
+<div id="scan-line"></div>
+
+<div id="main-frame">
+    <div class="monitor">
+        <div class="header">
+            <span>SATELLITE ACCESS 0.7</span>
+            <span id="clock">00:00:00</span>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="cityInp" placeholder="TARGET COORDINATES / CITY NAME...">
+            <button onclick="fetchData()">SCAN TARGET</button>
+        </div>
+
+        <div class="calibration-unit">
+            <span>SIGNAL OFFSET: <b id="offsetVal" style="color:#fff">0.0</b>°C</span>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="adjustTemp(0.5)" style="padding: 5px 15px; font-size: 12px;">+</button>
+                <button onclick="adjustTemp(-0.5)" style="padding: 5px 15px; font-size: 12px;">-</button>
+            </div>
+            <span style="color: var(--alert)">STATUS: CALIBRATED</span>
+        </div>
+
+        <div class="data-grid">
+            <div class="stat-card">
+                <div class="label">LOCATION_ID</div>
+                <div id="tName" class="value">STANDBY</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">THERMAL_DATA</div>
+                <div id="tTemp" class="value">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">WIND_VELOCITY</div>
+                <div id="tWind" class="value">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">ATMOS_HUMIDITY</div>
+                <div id="tHum" class="value">--</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div>
+                LINK: ENCRYPTED // CORE: V7_FINAL<br>
+                UPLINK_STATUS: STABLE<br>
+                USER_IP: <span id="uIP" style="color: #008844;">FETCHING...</span>
+            </div>
+            <div style="text-align: right;">
+                DANGER_LEVEL: LOW<br>
+                SATELLITE: METEOSAT-11<br>
+                AUTH: CASUALPLOTW_ADMIN
+            </div>
+        </div>
+    </div>
+
+    <div class="side-panel">
+        <div class="radar-box">
+            <div class="radar"></div>
+            <div style="margin-top: 15px; font-size: 12px; letter-spacing: 4px;">ACTIVE SCAN</div>
+        </div>
+        <div class="log-container" id="logs"></div>
+    </div>
+</div>
+
+<script>
+    let currentTemp = 0;
+    let offset = 0;
+
+    function addLog(m, c = "#00ff66") {
+        const e = document.createElement('div');
+        e.className = 'log-entry'; e.style.color = c;
+        e.innerHTML = `[${new Date().toLocaleTimeString()}] > ${m}`;
+        document.getElementById('logs').prepend(e);
+    }
+
+    function adjustTemp(val) {
+        offset += val;
+        document.getElementById('offsetVal').innerText = offset.toFixed(1);
+        if(currentTemp !== 0) updateDisplay();
+        addLog(`CALIBRATION OFFSET: ${offset.toFixed(1)}°C`, "#ffcc00");
+    }
+
+    function updateDisplay() {
+        document.getElementById('tTemp').innerText = (currentTemp + offset).toFixed(1) + "°C";
+    }
+
+    async function fetchData() {
+        const city = document.getElementById('cityInp').value || 'Bursa';
+        addLog(`TARGET LOCK INITIATED: ${city.toUpperCase()}`, "#00ffcc");
+        
+        try {
+            const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=tr`);
+            const gd = await g.json();
+            
+            if(!gd.results) { addLog("CRITICAL: TARGET NOT FOUND", "red"); return; }
+            
+            const { latitude, longitude, name } = gd.results[0];
+            addLog(`UPLINK SECURED: ${latitude} / ${longitude}`);
+
+            const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=relative_humidity_2m`);
+            const d = await r.json();
+
+            currentTemp = d.current_weather.temperature;
+            document.getElementById('tName').innerText = name.toUpperCase();
+            document.getElementById('tWind').innerText = d.current_weather.windspeed + " KM/H";
+            document.getElementById('tHum').innerText = "%" + d.hourly.relative_humidity_2m[new Date().getHours()];
+            
+            updateDisplay();
+            addLog(`DATA STREAM SYNCED: ${name.toUpperCase()}`, "#fff");
+        } catch(e) {
+            addLog("CONNECTION INTERRUPTED", "red");
+        }
+    }
+
+    // Sistem Başlatma
+    setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString(), 1000);
+    
+    fetch('https://api.ipify.org?format=json')
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('uIP').innerText = d.ip;
+            addLog(`REMOTE IP REGISTERED: ${d.ip}`);
+        });
+
+    addLog("SYSTEM CORE ONLINE");
+    addLog("READY FOR OPERATIONS");
+</script>
+
+</body>
+</html>
